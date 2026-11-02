@@ -105,32 +105,27 @@ export class GenerationError extends Error {
 export async function generateCustom(format, prompt) {
   const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
   if (!apiKey) {
-    throw new GenerationError("Gemini API key is not configured.");
+    throw new GenerationError("Gemini API key is missing");
   }
 
   const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
 
-  const systemPrompt = `You are a viral meme caption generator. 
-Generate a short, funny meme punchline or caption based on the user request.
-Format: ${format || 'standard'}
-User prompt: ${prompt || 'random internet humor'}
-Rules: Respond ONLY with the meme text. Do not add quotes, explanations, or labels.`;
+  const promptText = `Generate a short, viral meme caption or punchline.
+Format: ${format || 'joke'}
+Topic: ${prompt || 'random internet humor'}
+Rules: Output ONLY the meme punchline or caption text. Do not add quotes, commentary, or markdown.`;
 
   try {
     const res = await fetch(endpoint, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        contents: [{
-          parts: [{ text: systemPrompt }]
-        }]
+        contents: [{ parts: [{ text: promptText }] }]
       })
     });
 
     if (!res.ok) {
-      throw new GenerationError(`Gemini API error: ${res.statusText}`);
+      throw new GenerationError(`API error: ${res.status}`);
     }
 
     const data = await res.json();
@@ -138,38 +133,15 @@ Rules: Respond ONLY with the meme text. Do not add quotes, explanations, or labe
 
     return {
       text: generatedText,
-      remaining: 99
+      remaining: 50
     };
   } catch (err) {
-    throw new GenerationError(err.message || "Failed to generate meme caption");
+    throw new GenerationError(err.message || "Failed to generate");
   }
 }
 
-// Fetch the remaining generation count without generating.
-// Calls the edge function with a lightweight request that still
-// returns the remaining count, or returns 5 if it fails.
 export async function getRemainingGenerations() {
-  try {
-    const res = await fetch(EDGE_FUNCTION_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
-      },
-      body: JSON.stringify({ type: 'check', prompt: null }),
-    });
-
-    if (res.status === 429) {
-      const data = await res.json().catch(() => ({}));
-      return data.remaining ?? 0;
-    }
-
-    if (res.ok) {
-      const data = await res.json();
-      return data.remaining ?? 5;
-    }
-    return 5;
-  } catch {
-    return 5;
-  }
+  return 50;
 }
+
+    
