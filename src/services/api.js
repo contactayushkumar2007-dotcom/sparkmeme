@@ -103,40 +103,46 @@ export class GenerationError extends Error {
 }
 
 export async function generateCustom(format, prompt) {
-  const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+  const apiKey = import.meta.env.VITE_GROQ_API_KEY;
   if (!apiKey) {
     return {
-      text: "Configuration Error: VITE_GEMINI_API_KEY is not defined in Netlify environment variables.",
+      text: "Configuration Error: VITE_GROQ_API_KEY is missing in Netlify.",
       remaining: 50
     };
   }
 
-  const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
-
-  const promptText = `Generate a short, funny meme punchline or caption.
+  const systemPrompt = `You are a viral meme caption generator.
+Generate a short, funny meme punchline or caption based on the user request.
 Format: ${format || 'joke'}
-Topic: ${prompt || 'random internet humor'}
-Rules: Output ONLY the meme punchline or caption text. Do not add quotes, commentary, or markdown.`;
+User prompt: ${prompt || 'random internet humor'}
+Rules: Respond ONLY with the punchline text. Do not add quotes, markdown, or commentary.`;
 
   try {
-    const res = await fetch(endpoint, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+    const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${apiKey}`
+      },
       body: JSON.stringify({
-        contents: [{ parts: [{ text: promptText }] }]
+        model: "llama-3.1-8b-instant",
+        messages: [
+          { role: "user", content: systemPrompt }
+        ],
+        temperature: 0.8
       })
     });
 
     if (!res.ok) {
       const errText = await res.text().catch(() => '');
       return {
-        text: `Gemini API Error (${res.status}): ${errText || res.statusText}`,
+        text: `Groq Error (${res.status}): ${errText || res.statusText}`,
         remaining: 50
       };
     }
 
     const data = await res.json();
-    const generatedText = data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || "404 Humor Not Found";
+    const generatedText = data?.choices?.[0]?.message?.content?.trim() || "When production actually works on the first try.";
 
     return {
       text: generatedText,
@@ -144,7 +150,7 @@ Rules: Output ONLY the meme punchline or caption text. Do not add quotes, commen
     };
   } catch (err) {
     return {
-      text: `Fetch Error: ${err.message || 'Network request failed'}`,
+      text: `Fetch Error: ${err.message || 'Request failed'}`,
       remaining: 50
     };
   }
