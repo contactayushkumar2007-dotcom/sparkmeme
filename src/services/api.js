@@ -105,16 +105,15 @@ export class GenerationError extends Error {
 export async function generateCustom(format, prompt) {
   const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
   if (!apiKey) {
-if (!res.ok) {
-  throw new GenerationError(`API error: ${res.status}`);
-}
-
-    throw new GenerationError("Gemini API key is missing");
+    return {
+      text: "Configuration Error: VITE_GEMINI_API_KEY is not defined in Netlify environment variables.",
+      remaining: 50
+    };
   }
 
   const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
 
-  const promptText = `Generate a short, viral meme caption or punchline.
+  const promptText = `Generate a short, funny meme punchline or caption.
 Format: ${format || 'joke'}
 Topic: ${prompt || 'random internet humor'}
 Rules: Output ONLY the meme punchline or caption text. Do not add quotes, commentary, or markdown.`;
@@ -129,23 +128,28 @@ Rules: Output ONLY the meme punchline or caption text. Do not add quotes, commen
     });
 
     if (!res.ok) {
-      throw new GenerationError(`API error: ${res.status}`);
+      const errText = await res.text().catch(() => '');
+      return {
+        text: `Gemini API Error (${res.status}): ${errText || res.statusText}`,
+        remaining: 50
+      };
     }
 
     const data = await res.json();
-    const generatedText = data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || "When the code finally works on production.";
+    const generatedText = data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || "404 Humor Not Found";
 
     return {
       text: generatedText,
       remaining: 50
     };
   } catch (err) {
-    throw new GenerationError(err.message || "Failed to generate");
+    return {
+      text: `Fetch Error: ${err.message || 'Network request failed'}`,
+      remaining: 50
+    };
   }
 }
 
 export async function getRemainingGenerations() {
   return 50;
 }
-
-    
