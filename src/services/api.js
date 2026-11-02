@@ -105,6 +105,10 @@ export class GenerationError extends Error {
 export async function generateCustom(format, prompt) {
   const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
   if (!apiKey) {
+if (!res.ok) {
+  throw new GenerationError(`API error: ${res.status}`);
+}
+
     throw new GenerationError("Gemini API key is missing");
   }
 
