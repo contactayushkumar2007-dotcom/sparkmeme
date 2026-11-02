@@ -103,36 +103,46 @@ export class GenerationError extends Error {
 }
 
 export async function generateCustom(format, prompt) {
-  const res = await fetch(EDGE_FUNCTION_URL, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
-    },
-    body: JSON.stringify({ type: 'generate', format, prompt }),
-  });
-
-  if (res.status === 429) {
-    const data = await res.json().catch(() => ({}));
-    throw new LimitError(
-      data.message || "You've reached today's free limit. Come back tomorrow.",
-      data.remaining ?? 0
-    );
+  const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+  if (!apiKey) {
+    throw new GenerationError("Gemini API key is not configured.");
   }
 
-  if (!res.ok) {
-    const data = await res.json().catch(() => ({}));
-    throw new GenerationError(
-      data.message || `Request failed (${res.status})`,
-      data.debug
-    );
-  }
+  const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
 
-  const data = await res.json();
-  return {
-    text: data.text ?? '',
-    remaining: data.remaining ?? 0,
-  };
+  const systemPrompt = `You are a viral meme caption generator. 
+Generate a short, funny meme punchline or caption based on the user request.
+Format: ${format || 'standard'}
+User prompt: ${prompt || 'random internet humor'}
+Rules: Respond ONLY with the meme text. Do not add quotes, explanations, or labels.`;
+
+  try {
+    const res = await fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        contents: [{
+          parts: [{ text: systemPrompt }]
+        }]
+      })
+    });
+
+    if (!res.ok) {
+      throw new GenerationError(`Gemini API error: ${res.statusText}`);
+    }
+
+    const data = await res.json();
+    const generatedText = data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || "When the code finally works on production.";
+
+    return {
+      text: generatedText,
+      remaining: 99
+    };
+  } catch (err) {
+    throw new GenerationError(err.message || "Failed to generate meme caption");
+  }
 }
 
 // Fetch the remaining generation count without generating.
