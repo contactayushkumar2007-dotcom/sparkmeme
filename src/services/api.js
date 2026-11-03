@@ -125,7 +125,7 @@ Rules: Respond ONLY with the punchline text. Do not add quotes, markdown, or com
         "Authorization": `Bearer ${apiKey}`
       },
       body: JSON.stringify({
-        model: "llama-3.1-8b-instant",
+        model: "openai/gpt-oss-20b",
 
        messages: [
           { role: "user", content: systemPrompt }
